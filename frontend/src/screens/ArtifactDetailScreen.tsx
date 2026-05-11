@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   Share,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
 import { ThreadView } from '../components/ThreadView';
 import { api } from '../utils/api';
@@ -43,6 +44,15 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'thread' | 'details' | 'spec'>('thread');
   const [generatedSpec, setGeneratedSpec] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
 
   const fetchThread = useCallback(async () => {
     try {
@@ -131,58 +141,35 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
 
   const statusOptions = ['draft', 'needs_review', 'approved', 'blocked', 'done'];
 
-  const dependencyNames = artifact.dependencies && artifact.dependencies.length > 0
-    ? artifact.dependencies
-    : [];
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>{artifact.title}</Text>
           <View style={[styles.headerTypeIndicator, { backgroundColor: TYPE_COLORS[artifact.type] || '#7C5CFC' }]} />
         </View>
-        <TouchableOpacity onPress={handleShare}>
-          <Text style={styles.shareText}>Share</Text>
+        <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+          <Text style={styles.shareText}>⇗</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.bodyWrap, isDesktop && styles.bodyWrapDesktop]}>
+      <Animated.View style={[styles.bodyWrap, isDesktop && styles.bodyWrapDesktop, { opacity: fadeAnim }]}>
       <View style={styles.meta}>
-        <View style={[styles.badge, { backgroundColor: TYPE_COLORS[artifact.type] || '#999' }]}>
-          <Text style={styles.badgeText}>{artifact.type.toUpperCase()}</Text>
+        <View style={[styles.typeBadge, { backgroundColor: TYPE_COLORS[artifact.type] || '#7C5CFC' }]}>
+          <Text style={styles.typeBadgeText}>{artifact.type.toUpperCase()}</Text>
         </View>
-        <Text style={styles.ownerText}>@{artifact.owner_role}</Text>
-        <Text style={styles.authorText}>by {artifact.created_by}</Text>
-        <Text style={styles.statusLabel}>{artifact.status.replace('_', ' ')}</Text>
-      </View>
-
-      <View style={styles.statusRow}>
-        {statusOptions.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[
-              styles.statusChip,
-              artifact.status === s && {
-                backgroundColor: STATUS_COLORS[s] || '#999',
-                borderColor: STATUS_COLORS[s] || '#999',
-              },
-            ]}
-            onPress={() => handleStatusChange(s)}
-          >
-            <Text
-              style={[
-                styles.statusChipText,
-                artifact.status === s && { color: '#FFF' },
-              ]}
-            >
-              {s.replace('_', ' ')}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <Text style={styles.metaOwner}>@{artifact.owner_role}</Text>
+        <Text style={styles.metaDivider}>|</Text>
+        <Text style={styles.metaAuthor}>{artifact.created_by}</Text>
+        <View style={styles.metaSpacer} />
+        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[artifact.status] || '#5C5C78' }]}>
+          <View style={styles.statusBadgeDot} />
+          <Text style={styles.statusBadgeText}>{artifact.status.replace('_', ' ')}</Text>
+        </View>
       </View>
 
       <View style={styles.tabRow}>
@@ -193,7 +180,7 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
             onPress={() => setActiveTab(tab as any)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'thread' ? '💬' : tab === 'details' ? '📄' : '📋'} {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -211,23 +198,51 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
 
       {activeTab === 'details' && (
         <ScrollView style={styles.detailsPanel}>
+          <Text style={styles.label}>Status</Text>
+          <View style={styles.statusRow}>
+            {statusOptions.map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={[
+                  styles.statusPill,
+                  artifact.status === s && {
+                    backgroundColor: STATUS_COLORS[s] || '#5C5C78',
+                    borderColor: STATUS_COLORS[s] || '#5C5C78',
+                  },
+                ]}
+                onPress={() => handleStatusChange(s)}
+              >
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    artifact.status === s && { color: '#FFF' },
+                  ]}
+                >
+                  {s.replace('_', ' ')}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Content</Text>
             <Text style={styles.contentText}>{artifact.content}</Text>
           </View>
 
-          {dependencyNames.length > 0 && (
+          {artifact.dependencies && artifact.dependencies.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Dependencies</Text>
-              {dependencyNames.map((dep) => (
-                <TouchableOpacity
-                  key={dep}
-                  style={styles.depChip}
-                  onPress={() => navigation.push('ArtifactDetail', { artifact: { id: dep } })}
-                >
-                  <Text style={styles.depText}>{dep}</Text>
-                </TouchableOpacity>
-              ))}
+              <View style={styles.depRow}>
+                {artifact.dependencies.map((dep) => (
+                  <TouchableOpacity
+                    key={dep}
+                    style={styles.depPill}
+                    onPress={() => navigation.push('ArtifactDetail', { artifact: { id: dep } })}
+                  >
+                    <Text style={styles.depText}>{dep}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
@@ -245,8 +260,8 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Activity</Text>
-            <Text style={styles.activityText}>Created: {new Date(artifact.created_at * 1000).toLocaleString()}</Text>
-            <Text style={styles.activityText}>Updated: {new Date(artifact.updated_at * 1000).toLocaleString()}</Text>
+            <Text style={styles.activityText}>Created {new Date(artifact.created_at * 1000).toLocaleString()}</Text>
+            <Text style={styles.activityText}>Updated {new Date(artifact.updated_at * 1000).toLocaleString()}</Text>
           </View>
 
           {thread && thread.messages && thread.messages.length > 0 && (
@@ -266,9 +281,12 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
       {activeTab === 'spec' && (
         <ScrollView style={styles.specPanel}>
           {generatedSpec ? (
-            <Text style={styles.specText}>{generatedSpec}</Text>
+            <View style={styles.specCard}>
+              <Text style={styles.specText}>{generatedSpec}</Text>
+            </View>
           ) : (
             <View style={styles.specEmpty}>
+              <Text style={styles.specEmptyIcon}>📋</Text>
               <Text style={styles.specEmptyText}>
                 Generate a spec from the thread discussion
               </Text>
@@ -285,7 +303,7 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
           )}
         </ScrollView>
       )}
-    </View>
+    </Animated.View>
     </View>
   );
 };
@@ -311,12 +329,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 12,
-    backgroundColor: '#14141E',
+    backgroundColor: '#0A0A0F',
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
+    borderBottomColor: '#1C1C2E',
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingRight: 12,
+  },
+  backIcon: {
+    fontSize: 18,
+    color: '#FFFFFF',
   },
   backText: {
     fontSize: 15,
@@ -340,87 +365,84 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
+  shareBtn: {
+    paddingLeft: 12,
+  },
   shareText: {
-    fontSize: 14,
-    color: '#7C5CFC',
-    fontWeight: '600',
+    fontSize: 22,
+    color: '#5C5C78',
+    fontWeight: '700',
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#14141E',
+    backgroundColor: '#0A0A0F',
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
+    borderBottomColor: '#1C1C2E',
   },
-  badge: {
-    paddingHorizontal: 8,
+  typeBadge: {
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 999,
   },
-  badgeText: {
+  typeBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
   },
-  ownerText: {
+  metaOwner: {
     fontSize: 12,
     color: '#9E9EB8',
     fontWeight: '600',
   },
-  authorText: {
-    fontSize: 11,
+  metaDivider: {
+    fontSize: 12,
+    color: '#1C1C2E',
+  },
+  metaAuthor: {
+    fontSize: 12,
     color: '#5C5C78',
   },
-  statusLabel: {
-    fontSize: 11,
-    color: '#9E9EB8',
-    backgroundColor: '#1C1C2E',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 'auto',
-    textTransform: 'capitalize',
+  metaSpacer: {
+    flex: 1,
   },
-  statusRow: {
+  statusBadge: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#14141E',
-    gap: 6,
-    flexWrap: 'wrap',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
-  },
-  statusChip: {
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2A2A40',
-    backgroundColor: '#1C1C2E',
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  statusChipText: {
-    fontSize: 11,
-    color: '#9E9EB8',
-    fontWeight: '600',
+  statusBadgeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '700',
     textTransform: 'capitalize',
   },
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#14141E',
+    backgroundColor: '#0A0A0F',
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
+    borderBottomColor: '#1C1C2E',
+    paddingHorizontal: 12,
   },
   tab: {
-    flex: 1,
     paddingVertical: 12,
-    alignItems: 'center',
+    paddingHorizontal: 16,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    marginRight: 4,
   },
   tabActive: {
     borderBottomColor: '#7C5CFC',
@@ -428,7 +450,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#5C5C78',
+    color: '#3A3A50',
   },
   tabTextActive: {
     color: '#7C5CFC',
@@ -437,20 +459,48 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  section: {
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#5C5C78',
+    marginBottom: 8,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
     marginBottom: 20,
-    backgroundColor: 'rgba(20, 20, 30, 0.85)',
+  },
+  statusPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#1C1C2E',
+    backgroundColor: '#14141E',
+  },
+  statusPillText: {
+    fontSize: 12,
+    color: '#5C5C78',
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  section: {
+    marginBottom: 16,
+    backgroundColor: '#14141E',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#5C5C78',
     marginBottom: 10,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   contentText: {
@@ -458,27 +508,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     lineHeight: 22,
   },
-  depChip: {
-    backgroundColor: '#1C1C2E',
-    paddingHorizontal: 10,
+  depRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  depPill: {
+    backgroundColor: '#0D0D1A',
+    borderWidth: 1,
+    borderColor: '#1C1C2E',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
-    marginBottom: 6,
+    borderRadius: 999,
   },
   depText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#7C5CFC',
+    fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
+    borderBottomColor: '#1C1C2E',
   },
   metaKey: {
     fontSize: 12,
-    color: '#9E9EB8',
+    color: '#5C5C78',
     fontWeight: '600',
   },
   metaValue: {
@@ -489,42 +546,48 @@ const styles = StyleSheet.create({
   },
   activityText: {
     fontSize: 13,
-    color: '#9E9EB8',
+    color: '#5C5C78',
     marginBottom: 4,
   },
   generateBtn: {
     backgroundColor: '#7C5CFC',
-    padding: 14,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 999,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   generateBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   specPanel: {
     flex: 1,
     padding: 16,
   },
-  specText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    lineHeight: 20,
+  specCard: {
     backgroundColor: '#14141E',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
+  },
+  specText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    lineHeight: 20,
   },
   specEmpty: {
     alignItems: 'center',
     paddingTop: 60,
   },
+  specEmptyIcon: {
+    fontSize: 40,
+    marginBottom: 16,
+  },
   specEmptyText: {
     fontSize: 14,
-    color: '#5C5C78',
+    color: '#3A3A50',
     marginBottom: 20,
   },
 });

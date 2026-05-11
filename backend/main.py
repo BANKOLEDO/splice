@@ -18,6 +18,7 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 from models import (
     ArtifactCreate, ArtifactUpdate, MessageCreate,
     ArtifactType, ArtifactStatus, OwnerRole, Role,
+    TeamCreate, TeamMemberAdd,
 )
 from connection_manager import manager
 from exceptions import AppException, NotFoundException, ConflictException, app_exception_handler, generic_exception_handler
@@ -106,12 +107,23 @@ async def register(data: dict):
         "INSERT INTO users (id, username, display_name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         (user_id, username, display_name, hash_password(password), role, now),
     )
+
+    team_id = str(uuid.uuid4())
+    team_slug = f"{username}-team"
+    conn.execute(
+        "INSERT INTO teams (id, name, slug, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
+        (team_id, f"{display_name}'s Team", team_slug, user_id, now),
+    )
+    conn.execute(
+        "INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+        (team_id, user_id, "admin", now),
+    )
     conn.commit()
 
     token = create_access_token(user_id, role)
     return {
         "token": token,
-        "user": {"id": user_id, "username": username, "display_name": display_name, "role": role},
+        "user": {"id": user_id, "username": username, "display_name": display_name, "role": role, "team_id": team_id},
     }
 
 
@@ -135,6 +147,11 @@ async def login(data: dict):
     conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (now, user["id"]))
     conn.commit()
 
+    team = conn.execute(
+        "SELECT tm.team_id FROM team_members tm WHERE tm.user_id = ? LIMIT 1", (user["id"],)
+    ).fetchone()
+    team_id = team["team_id"] if team else ""
+
     token = create_access_token(user["id"], user["role"])
     return {
         "token": token,
@@ -143,6 +160,7 @@ async def login(data: dict):
             "username": user["username"],
             "display_name": user["display_name"],
             "role": user["role"],
+            "team_id": team_id,
         },
     }
 
@@ -159,6 +177,91 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     return dict(user)
 
 
+# ─── Teams ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/teams")
+async def list_teams(current_user: dict = Depends(get_current_user)):
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT t.* FROM teams t
+           JOIN team_members tm ON t.id = tm.team_id
+           WHERE tm.user_id = ?
+           ORDER BY t.created_at DESC""",
+        (current_user["user_id"],),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/teams")
+async def create_team(team: TeamCreate, current_user: dict = Depends(get_current_user)):
+    conn = get_db()
+    now = int(datetime.now().timestamp())
+    team_id = str(uuid.uuid4())
+    try:
+        conn.execute(
+            "INSERT INTO teams (id, name, slug, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
+            (team_id, team.name, team.slug, current_user["user_id"], now),
+        )
+        conn.execute(
+            "INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+            (team_id, current_user["user_id"], "admin", now),
+        )
+        conn.commit()
+    except Exception as e:
+        if "UNIQUE" in str(e):
+            raise ConflictException("Team slug already exists")
+        raise
+    return {"success": True, "id": team_id, "name": team.name}
+
+
+@app.post("/api/teams/{team_id}/join")
+async def join_team(team_id: str, current_user: dict = Depends(get_current_user)):
+    conn = get_db()
+    team = conn.execute("SELECT id FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if not team:
+        raise NotFoundException("Team")
+    existing = conn.execute(
+        "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?",
+        (team_id, current_user["user_id"]),
+    ).fetchone()
+    if existing:
+        return {"success": True, "already_member": True}
+    now = int(datetime.now().timestamp())
+    conn.execute(
+        "INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+        (team_id, current_user["user_id"], "member", now),
+    )
+    conn.commit()
+    return {"success": True, "already_member": False}
+
+
+@app.delete("/api/teams/{team_id}")
+async def delete_team(team_id: str, current_user: dict = Depends(get_current_user)):
+    conn = get_db()
+    team = conn.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if not team:
+        raise NotFoundException("Team")
+    if team["created_by"] != current_user["user_id"]:
+        raise AppException(403, "Only the team creator can delete this team")
+    conn.execute("DELETE FROM artifacts WHERE team_id = ?", (team_id,))
+    conn.execute("DELETE FROM team_members WHERE team_id = ?", (team_id,))
+    conn.execute("DELETE FROM teams WHERE id = ?", (team_id,))
+    conn.commit()
+    return {"success": True}
+
+
+@app.get("/api/teams/{team_id}/members")
+async def list_team_members(team_id: str, current_user: dict = Depends(get_current_user)):
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT u.id, u.username, u.display_name, u.role, tm.role as member_role
+           FROM team_members tm JOIN users u ON tm.user_id = u.id
+           WHERE tm.team_id = ?""",
+        (team_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 # ─── Artifacts ──────────────────────────────────────────────────────────────
 
 @app.get("/api/artifacts")
@@ -166,25 +269,33 @@ async def get_artifacts(
     status: Optional[str] = Query(None),
     owner: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
+    team_id: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
-    _=Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     conn = get_db()
-    query = "SELECT * FROM artifacts WHERE 1=1"
+    query = "SELECT artifacts.* FROM artifacts JOIN team_members ON artifacts.team_id = team_members.team_id"
     params = []
 
+    conditions = ["team_members.user_id = ?"]
+    params.append(current_user["user_id"])
+
+    if team_id:
+        conditions.append("artifacts.team_id = ?")
+        params.append(team_id)
     if status:
-        query += " AND status = ?"
+        conditions.append("artifacts.status = ?")
         params.append(status)
     if owner:
-        query += " AND owner_role = ?"
+        conditions.append("artifacts.owner_role = ?")
         params.append(owner)
     if type:
-        query += " AND type = ?"
+        conditions.append("artifacts.type = ?")
         params.append(type)
 
-    query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+    query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY artifacts.updated_at DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
     cursor = conn.execute(query, params)
@@ -202,13 +313,15 @@ async def get_artifact(artifact_id: str, _=Depends(get_current_user)):
 async def create_artifact(artifact: ArtifactCreate, current_user: dict = Depends(get_current_user)):
     conn = get_db()
     now = int(datetime.now().timestamp())
+    team_id = artifact.team_id or ""
     try:
         conn.execute(
-            """INSERT INTO artifacts (id, type, title, content, owner_role, status,
+            """INSERT INTO artifacts (id, team_id, type, title, content, owner_role, status,
                dependencies, created_by, created_at, updated_at, metadata)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 artifact.id,
+                team_id,
                 artifact.type.value,
                 artifact.title,
                 artifact.content,

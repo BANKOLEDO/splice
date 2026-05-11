@@ -5,6 +5,7 @@ interface User {
   username: string;
   display_name: string;
   role: string;
+  team_id?: string;
 }
 
 interface AuthState {

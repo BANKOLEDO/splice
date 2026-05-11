@@ -43,3 +43,13 @@ def init_db():
     with open(schema_path) as f:
         conn.executescript(f.read())
     conn.commit()
+    migrate_db(conn)
+
+
+def migrate_db(conn):
+    cursor = conn.execute("PRAGMA table_info(artifacts)")
+    cols = {row[1] for row in cursor.fetchall()}
+    if "team_id" not in cols:
+        conn.execute("ALTER TABLE artifacts ADD COLUMN team_id TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+        print("Applied migration: added artifacts.team_id")

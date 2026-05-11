@@ -31,8 +31,25 @@ export enum OwnerRole {
   FRONTEND = 'frontend',
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  created_by: string;
+  created_at: number;
+}
+
+export interface TeamMember {
+  id: string;
+  username: string;
+  display_name: string;
+  role: string;
+  member_role: string;
+}
+
 export interface Artifact {
   id: string;
+  team_id: string;
   type: ArtifactType;
   title: string;
   content: string;
@@ -108,20 +125,20 @@ export interface ArtifactStats {
 }
 
 export const ROLE_COLORS: Record<string, string> = {
-  dev: '#00F5A0',
+  dev: '#00E89C',
   designer: '#7C5CFC',
-  pm: '#FFB347',
-  backend: '#00D4FF',
-  frontend: '#FF6B9D',
+  pm: '#FF8C42',
+  backend: '#3B9EFF',
+  frontend: '#FF5E88',
 };
 
 export const TYPE_COLORS: Record<string, string> = {
   spec: '#7C5CFC',
-  design: '#FF6B9D',
-  api: '#00D4FF',
-  ui: '#FFB347',
-  task: '#00F5A0',
-  question: '#FF4757',
+  design: '#FF5E88',
+  api: '#3B9EFF',
+  ui: '#FF8C42',
+  task: '#00E89C',
+  question: '#FF3B5C',
 };
 
 export const STATUS_COLORS: Record<string, string> = {

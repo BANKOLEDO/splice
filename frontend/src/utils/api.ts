@@ -29,12 +29,34 @@ async function request<T>(
 }
 
 export const api = {
+  // Teams
+  getTeams: () => request<any[]>('/api/teams'),
+
+  createTeam: (data: { name: string; slug: string }) =>
+    request<{ success: boolean; id: string; name: string }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteTeam: (teamId: string) =>
+    request<{ success: boolean }>(`/api/teams/${teamId}`, {
+      method: 'DELETE',
+    }),
+
+  joinTeam: (teamId: string) =>
+    request<{ success: boolean; already_member: boolean }>(`/api/teams/${teamId}/join`, {
+      method: 'POST',
+    }),
+
+  getTeamMembers: (teamId: string) => request<any[]>(`/api/teams/${teamId}/members`),
+
   // Artifacts
-  getArtifacts: (params?: { status?: string; owner?: string; type?: string; limit?: number; offset?: number }) => {
+  getArtifacts: (params?: { status?: string; owner?: string; type?: string; team_id?: string; limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.owner) searchParams.set('owner', params.owner);
     if (params?.type) searchParams.set('type', params.type);
+    if (params?.team_id) searchParams.set('team_id', params.team_id);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
     const qs = searchParams.toString();

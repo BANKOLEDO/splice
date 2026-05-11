@@ -37,6 +37,16 @@ class OwnerRole(str, Enum):
     FRONTEND = "frontend"
 
 
+class TeamCreate(BaseModel):
+    name: str
+    slug: str
+
+
+class TeamMemberAdd(BaseModel):
+    user_id: str
+    role: str = "member"
+
+
 class ArtifactCreate(BaseModel):
     id: str
     type: ArtifactType
@@ -47,6 +57,7 @@ class ArtifactCreate(BaseModel):
     dependencies: List[str] = []
     created_by: str
     metadata: dict = {}
+    team_id: str = ""
 
 
 class ArtifactUpdate(BaseModel):

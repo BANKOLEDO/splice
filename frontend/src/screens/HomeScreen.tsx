@@ -3,6 +3,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   StyleSheet,
   RefreshControl,
   TextInput,
@@ -12,8 +13,9 @@ import {
 } from 'react-native';
 import { ArtifactCard } from '../components/ArtifactCard';
 import { api } from '../utils/api';
-import { Artifact, ArtifactType, ArtifactStatus, OwnerRole, TYPE_COLORS } from '../utils/types';
+import { Artifact, ArtifactType, ArtifactStatus, OwnerRole, TYPE_COLORS, ROLE_COLORS } from '../utils/types';
 import { BREAKPOINTS } from '../utils/responsive';
+import { useAuthStore } from '../store/authStore';
 
 const FILTERS = [
   { label: 'All', value: '' },
@@ -25,12 +27,17 @@ const FILTERS = [
   { label: 'Question', value: 'question' },
 ];
 
-export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
+export const HomeScreen: React.FC<{ navigation: any; currentUser: string; onNavigateToTeams?: () => void }> = ({
   navigation,
   currentUser,
+  onNavigateToTeams,
 }) => {
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINTS.tablet;
+  const user = useAuthStore((s) => s.user);
+  const setToken = useAuthStore((s) => s.setToken);
+  const token = useAuthStore((s) => s.token);
+  const teamId = user?.team_id;
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [filtered, setFiltered] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +55,7 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
 
   const fetchArtifacts = useCallback(async () => {
     try {
-      const data = await api.getArtifacts({ limit: 100 });
+      const data = await api.getArtifacts({ limit: 100, team_id: teamId });
       setArtifacts(data);
     } catch (e) {
       console.warn('Failed to fetch artifacts:', e);
@@ -56,7 +63,7 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [teamId]);
 
   useEffect(() => {
     fetchArtifacts();
@@ -91,6 +98,7 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
       await api.createArtifact({
         id,
         ...newArtifact,
+        team_id: teamId || '',
         status: ArtifactStatus.DRAFT,
         dependencies: [],
         created_by: currentUser,
@@ -111,19 +119,31 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
           <View style={styles.headerDot} />
           <Text style={styles.headerTitle}>Splice</Text>
         </View>
+        <TouchableOpacity style={styles.teamBadge} onPress={onNavigateToTeams}>
+          <Text style={styles.teamBadgeIcon}>◎</Text>
+          <Text style={styles.teamBadgeText} numberOfLines={1}>
+            {user?.team_id?.substring(0, 8) || 'Team'}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.newButton} onPress={() => setShowNewModal(true)}>
           <Text style={styles.newButtonText}>+ New</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
           style={styles.searchInput}
           placeholder="Search artifacts..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#2A2A40"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <Text style={styles.clearBtnText}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.filterRow}>
@@ -133,8 +153,8 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
             style={[
               styles.filterChip,
               activeFilter === f.value && {
-                backgroundColor: f.value ? TYPE_COLORS[f.value] || '#1A1A1A' : '#1A1A1A',
-                borderColor: f.value ? TYPE_COLORS[f.value] || '#1A1A1A' : '#1A1A1A',
+                backgroundColor: f.value ? TYPE_COLORS[f.value] || '#1C1C2E' : '#1C1C2E',
+                borderColor: f.value ? TYPE_COLORS[f.value] || '#1C1C2E' : '#1C1C2E',
               },
             ]}
             onPress={() => setActiveFilter(activeFilter === f.value ? '' : f.value)}
@@ -190,26 +210,27 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
 
       <Modal visible={showNewModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>New Artifact</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New Artifact</Text>
+              <TouchableOpacity onPress={() => setShowNewModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.label}>Type</Text>
-            <View style={styles.typeRow}>
+            <View style={styles.pillRow}>
               {Object.values(ArtifactType).map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[
-                    styles.typeOption,
-                    newArtifact.type === t && { backgroundColor: TYPE_COLORS[t] || '#1A1A1A' },
+                    styles.pillOption,
+                    newArtifact.type === t && { backgroundColor: TYPE_COLORS[t] || '#7C5CFC', borderColor: TYPE_COLORS[t] || '#7C5CFC' },
                   ]}
                   onPress={() => setNewArtifact({ ...newArtifact, type: t as ArtifactType })}
                 >
-                  <Text
-                    style={[
-                      styles.typeOptionText,
-                      newArtifact.type === t && { color: '#FFF' },
-                    ]}
-                  >
+                  <Text style={[styles.pillOptionText, newArtifact.type === t && { color: '#FFF' }]}>
                     {t}
                   </Text>
                 </TouchableOpacity>
@@ -220,7 +241,7 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
             <TextInput
               style={styles.input}
               placeholder="Artifact title"
-              placeholderTextColor="#999"
+              placeholderTextColor="#2A2A40"
               value={newArtifact.title}
               onChangeText={(t) => setNewArtifact({ ...newArtifact, title: t })}
             />
@@ -229,29 +250,27 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
             <TextInput
               style={[styles.input, styles.contentInput]}
               placeholder="Describe the artifact..."
-              placeholderTextColor="#999"
+              placeholderTextColor="#2A2A40"
               value={newArtifact.content}
               onChangeText={(c) => setNewArtifact({ ...newArtifact, content: c })}
               multiline
             />
 
             <Text style={styles.label}>Owner Role</Text>
-            <View style={styles.typeRow}>
+            <View style={styles.pillRow}>
               {Object.values(OwnerRole).map((r) => (
                 <TouchableOpacity
                   key={r}
                   style={[
-                    styles.roleOption,
-                    newArtifact.owner_role === r && styles.roleOptionActive,
+                    styles.pillOption,
+                    newArtifact.owner_role === r && {
+                      backgroundColor: ROLE_COLORS[r] || '#7C5CFC',
+                      borderColor: ROLE_COLORS[r] || '#7C5CFC',
+                    },
                   ]}
                   onPress={() => setNewArtifact({ ...newArtifact, owner_role: r as OwnerRole })}
                 >
-                  <Text
-                    style={[
-                      styles.roleText,
-                      newArtifact.owner_role === r && styles.roleTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.pillOptionText, newArtifact.owner_role === r && { color: '#FFF' }]}>
                     {r}
                   </Text>
                 </TouchableOpacity>
@@ -267,6 +286,7 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
               </TouchableOpacity>
             </View>
           </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -296,10 +316,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#14141E',
+    paddingBottom: 14,
+    backgroundColor: '#0A0A0F',
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A40',
+    borderBottomColor: '#1C1C2E',
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -313,65 +333,105 @@ const styles = StyleSheet.create({
     backgroundColor: '#00F5A0',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  teamBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#14141E',
+    borderWidth: 1,
+    borderColor: '#1C1C2E',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    gap: 6,
+    maxWidth: 160,
+  },
+  teamBadgeIcon: {
+    fontSize: 12,
+    color: '#7C5CFC',
+  },
+  teamBadgeText: {
+    fontSize: 12,
+    color: '#9E9EB8',
+    fontWeight: '600',
   },
   newButton: {
     backgroundColor: '#7C5CFC',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   newButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#14141E',
+    paddingVertical: 10,
+    backgroundColor: '#0A0A0F',
+    gap: 8,
+  },
+  searchIcon: {
+    fontSize: 16,
+    color: '#2A2A40',
   },
   searchInput: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    backgroundColor: '#1C1C2E',
+    backgroundColor: '#14141E',
     color: '#FFFFFF',
+  },
+  clearBtn: {
+    padding: 4,
+  },
+  clearBtnText: {
+    fontSize: 14,
+    color: '#2A2A40',
+    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingBottom: 12,
-    backgroundColor: '#14141E',
-    gap: 8,
+    paddingBottom: 10,
+    backgroundColor: '#0A0A0F',
+    gap: 6,
     flexWrap: 'wrap',
   },
   filterChip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#2A2A40',
-    backgroundColor: '#1C1C2E',
+    borderColor: '#1C1C2E',
+    backgroundColor: '#14141E',
   },
   filterText: {
     fontSize: 12,
-    color: '#9E9EB8',
+    color: '#5C5C78',
     fontWeight: '600',
   },
   filterTextActive: {
     color: '#FFFFFF',
   },
   countText: {
-    fontSize: 12,
-    color: '#5C5C78',
+    fontSize: 11,
+    color: '#2A2A40',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   emptyState: {
     alignItems: 'center',
@@ -379,18 +439,18 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 48,
-    color: '#2A2A40',
+    color: '#1C1C2E',
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#5C5C78',
+    color: '#3A3A50',
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#3A3A50',
+    color: '#2A2A40',
   },
   modalOverlay: {
     flex: 1,
@@ -398,74 +458,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    justifyContent: 'center',
+    flexGrow: 1,
+  },
   modal: {
     backgroundColor: '#14141E',
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 20,
     color: '#FFFFFF',
   },
+  modalClose: {
+    fontSize: 18,
+    color: '#2A2A40',
+    fontWeight: '700',
+    padding: 4,
+  },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9E9EB8',
-    marginBottom: 6,
-    marginTop: 12,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#5C5C78',
+    marginBottom: 8,
+    marginTop: 16,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  typeRow: {
+  pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  typeOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+  pillOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#2A2A40',
-    backgroundColor: '#1C1C2E',
+    borderColor: '#1C1C2E',
+    backgroundColor: '#0D0D1A',
   },
-  typeOptionText: {
+  pillOptionText: {
     fontSize: 12,
-    color: '#9E9EB8',
+    color: '#5C5C78',
     fontWeight: '600',
-  },
-  roleOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2A2A40',
-    backgroundColor: '#1C1C2E',
-  },
-  roleOptionActive: {
-    backgroundColor: '#7C5CFC',
-    borderColor: '#7C5CFC',
-  },
-  roleText: {
-    fontSize: 12,
-    color: '#9E9EB8',
-    fontWeight: '600',
-  },
-  roleTextActive: {
-    color: '#FFFFFF',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 14,
-    backgroundColor: '#1C1C2E',
+    backgroundColor: '#0D0D1A',
     color: '#FFFFFF',
   },
   contentInput: {
@@ -476,24 +534,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 24,
-    gap: 12,
+    gap: 10,
   },
   cancelBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
   },
   cancelText: {
     fontSize: 14,
-    color: '#9E9EB8',
+    color: '#5C5C78',
     fontWeight: '600',
   },
   createBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 999,
     backgroundColor: '#7C5CFC',
   },
   createText: {

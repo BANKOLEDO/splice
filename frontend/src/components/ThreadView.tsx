@@ -9,6 +9,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { Message, Role, ROLE_COLORS } from '../utils/types';
 import { wsClient } from '../utils/websocket';
@@ -21,6 +22,10 @@ interface ThreadViewProps {
   onSendMessage: (content: string) => void;
   onFilePick?: () => void;
   typingUsers?: string[];
+}
+
+function getInitials(name: string): string {
+  return name.substring(0, 2).toUpperCase();
 }
 
 export const ThreadView: React.FC<ThreadViewProps> = ({
@@ -55,29 +60,34 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[styles.message, { borderLeftColor: ROLE_COLORS[item.role] || '#999' }]}>
-      <View style={styles.messageHeader}>
-        <Text style={[styles.messageAuthor, { color: ROLE_COLORS[item.role] || '#999' }]}>
-          {item.author}
-        </Text>
-        <Text style={styles.messageRole}>{item.role}</Text>
-        <Text style={styles.messageTime}>
-          {new Date(item.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
+    <View style={styles.messageRow}>
+      <View style={[styles.avatarCircle, { backgroundColor: ROLE_COLORS[item.role] || '#5C5C78' }]}>
+        <Text style={styles.avatarText}>{getInitials(item.author)}</Text>
       </View>
-      <Text style={styles.messageContent}>{item.content}</Text>
-      {item.attachments && item.attachments.length > 0 && (
-        <View style={styles.attachmentRow}>
-          {item.attachments.map((att, i) => (
-            <Image key={i} source={{ uri: att }} style={styles.attachment} />
-          ))}
+      <View style={[styles.message, { borderLeftColor: ROLE_COLORS[item.role] || '#5C5C78' }]}>
+        <View style={styles.messageHeader}>
+          <Text style={styles.messageAuthor}>{item.author}</Text>
+          <Text style={[styles.messageRole, { color: ROLE_COLORS[item.role] || '#5C5C78' }]}>
+            {item.role}
+          </Text>
+          <Text style={styles.messageTime}>
+            {new Date(item.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
         </View>
-      )}
-      {item.mentions && item.mentions.length > 0 && (
-        <Text style={styles.mentions}>
-          @{item.mentions.join(', @')}
-        </Text>
-      )}
+        <Text style={styles.messageContent}>{item.content}</Text>
+        {item.attachments && item.attachments.length > 0 && (
+          <View style={styles.attachmentRow}>
+            {item.attachments.map((att, i) => (
+              <Image key={i} source={{ uri: att }} style={styles.attachment} />
+            ))}
+          </View>
+        )}
+        {item.mentions && item.mentions.length > 0 && (
+          <Text style={styles.mentions}>
+            @{item.mentions.join(', @')}
+          </Text>
+        )}
+      </View>
     </View>
   );
 
@@ -122,7 +132,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
           value={inputText}
           onChangeText={handleInputChange}
           placeholder="Ask a question, give feedback, or clarify..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#3A3A50"
           multiline
           maxLength={2000}
         />
@@ -130,8 +140,9 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
           onPress={handleSubmit}
           style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
           disabled={!inputText.trim()}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.sendText, !inputText.trim() && styles.sendTextDisabled]}>Send</Text>
+          <Text style={styles.sendArrow}>↑</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -158,55 +169,70 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 48,
-    color: '#2A2A40',
+    color: '#1C1C2E',
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#5C5C78',
+    color: '#3A3A50',
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 13,
-    color: '#3A3A50',
+    color: '#2A2A40',
     textAlign: 'center',
   },
-  message: {
-    backgroundColor: 'rgba(20, 20, 30, 0.85)',
-    borderLeftWidth: 3,
-    padding: 12,
+  messageRow: {
+    flexDirection: 'row',
     marginBottom: 8,
-    borderRadius: 10,
+    gap: 8,
+  },
+  avatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  avatarText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  message: {
+    flex: 1,
+    backgroundColor: '#14141E',
+    borderLeftWidth: 2,
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
   },
   messageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     gap: 8,
   },
   messageAuthor: {
     fontWeight: '700',
     fontSize: 13,
+    color: '#FFFFFF',
   },
   messageRole: {
-    fontSize: 11,
-    color: '#9E9EB8',
-    backgroundColor: '#1C1C2E',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
+    fontSize: 10,
+    fontWeight: '600',
   },
   messageTime: {
     fontSize: 11,
-    color: '#5C5C78',
+    color: '#3A3A50',
     marginLeft: 'auto',
   },
   messageContent: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: '#E0E0F0',
     lineHeight: 20,
   },
   attachmentRow: {
@@ -220,7 +246,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
   },
   mentions: {
     fontSize: 12,
@@ -229,7 +255,7 @@ const styles = StyleSheet.create({
   },
   typingIndicator: {
     fontSize: 12,
-    color: '#5C5C78',
+    color: '#3A3A50',
     fontStyle: 'italic',
     paddingHorizontal: 16,
     paddingVertical: 4,
@@ -238,53 +264,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: '#2A2A40',
-    backgroundColor: '#14141E',
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    borderTopColor: '#1C1C2E',
+    backgroundColor: '#0A0A0F',
+    padding: 10,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     gap: 8,
   },
   attachButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#14141E',
   },
   attachText: {
     fontSize: 20,
-    color: '#9E9EB8',
+    color: '#3A3A50',
     fontWeight: '300',
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#2A2A40',
+    borderColor: '#1C1C2E',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
     maxHeight: 100,
     color: '#FFFFFF',
-    backgroundColor: '#1C1C2E',
+    backgroundColor: '#14141E',
   },
   sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#7C5CFC',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#2A2A40',
+    backgroundColor: '#1C1C2E',
   },
-  sendText: {
+  sendArrow: {
+    fontSize: 16,
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sendTextDisabled: {
-    color: '#5C5C78',
+    fontWeight: '700',
   },
 });
