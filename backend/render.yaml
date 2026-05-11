@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: splice-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+    disk:
+      name: splice-data
+      mountPath: /var/data
+      sizeGB: 1

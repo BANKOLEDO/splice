@@ -1,0 +1,16 @@
+# Splice - Real-time Visual Communication Bridge
+
+__pycache__/
+*.pyc
+*.pyo
+*.db
+.env
+.venv
+venv/
+uploads/*
+!uploads/.gitkeep
+node_modules/
+.expo/
+dist/
+.DS_Store
+*.log
