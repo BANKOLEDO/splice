@@ -8,10 +8,12 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { ArtifactCard } from '../components/ArtifactCard';
 import { api } from '../utils/api';
 import { Artifact, ArtifactType, ArtifactStatus, OwnerRole, TYPE_COLORS } from '../utils/types';
+import { BREAKPOINTS } from '../utils/responsive';
 
 const FILTERS = [
   { label: 'All', value: '' },
@@ -27,6 +29,8 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
   navigation,
   currentUser,
 }) => {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= BREAKPOINTS.tablet;
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [filtered, setFiltered] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,23 +168,25 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ArtifactCard
-            artifact={item}
-            onPress={(art) => navigation.navigate('ArtifactDetail', { artifact: art })}
-          />
-        )}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={loading ? null : renderEmpty}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7C5CFC" />
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      <View style={[styles.listWrap, isDesktop && styles.listWrapDesktop]}>
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ArtifactCard
+              artifact={item}
+              onPress={(art) => navigation.navigate('ArtifactDetail', { artifact: art })}
+            />
+          )}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={loading ? null : renderEmpty}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7C5CFC" />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
 
       <Modal visible={showNewModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -271,6 +277,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0A0F',
+  },
+  listWrap: {
+    flex: 1,
+    width: '100%',
+  },
+  listWrapDesktop: {
+    maxWidth: 800,
+    alignSelf: 'center',
+    width: '100%',
   },
   listContent: {
     paddingBottom: 100,

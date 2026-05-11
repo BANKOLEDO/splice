@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ArtifactDetailScreen } from './src/screens/ArtifactDetailScreen';
 import { wsClient } from './src/utils/websocket';
 import { useAuthStore } from './src/store/authStore';
 import { Role } from './src/utils/types';
+import { BREAKPOINTS } from './src/utils/responsive';
 
 const Stack = createNativeStackNavigator();
 
@@ -85,6 +86,8 @@ interface LoginScreenProps {
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, error }) => {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= BREAKPOINTS.tablet;
   const [username, setUsername] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role>(Role.DEV);
 
@@ -98,73 +101,77 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, error }) =>
 
   return (
     <View style={loginStyles.container}>
-      <View style={loginStyles.illustrationArea}>
-        <View style={loginStyles.orbLarge} />
-        <View style={loginStyles.orbSmall} />
-        <View style={loginStyles.orbCyan} />
-        <View style={loginStyles.node1} />
-        <View style={loginStyles.node2} />
-        <View style={loginStyles.node3} />
-        <View style={loginStyles.node4} />
-        <View style={[loginStyles.connector, { transform: [{ rotate: '30deg' }] }]} />
-        <View style={[loginStyles.connector, { transform: [{ rotate: '120deg' }] }]} />
-        <View style={[loginStyles.connector, { transform: [{ rotate: '250deg' }] }]} />
-        <Text style={loginStyles.logo}>Splice</Text>
-        <Text style={loginStyles.subtitle}>where teams connect</Text>
-      </View>
+      <View style={[loginStyles.innerWrap, isDesktop && loginStyles.innerWrapDesktop]}>
+        <View style={loginStyles.illustrationArea}>
+          <View style={loginStyles.orbLarge} />
+          <View style={loginStyles.orbSmall} />
+          <View style={loginStyles.orbCyan} />
+          <View style={loginStyles.node1} />
+          <View style={loginStyles.node2} />
+          <View style={loginStyles.node3} />
+          <View style={loginStyles.node4} />
+          <View style={[loginStyles.connector, { transform: [{ rotate: '30deg' }] }]} />
+          <View style={[loginStyles.connector, { transform: [{ rotate: '120deg' }] }]} />
+          <View style={[loginStyles.connector, { transform: [{ rotate: '250deg' }] }]} />
+          <Text style={loginStyles.logo}>Splice</Text>
+          <Text style={loginStyles.subtitle}>where teams connect</Text>
+        </View>
 
-      <View style={loginStyles.card}>
-        <Text style={loginStyles.formLabel}>Username</Text>
-        <TextInput
-          style={loginStyles.input}
-          placeholder="e.g. alice_dev"
-          placeholderTextColor="#3A3A50"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+        <View style={loginStyles.card}>
+          <Text style={loginStyles.formLabel}>Username</Text>
+          <TextInput
+            style={loginStyles.input}
+            placeholder="e.g. alice_dev"
+            placeholderTextColor="#3A3A50"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
 
-        <Text style={loginStyles.formLabel}>Role</Text>
-        {roles.map((r) => (
-          <TouchableOpacity
-            key={r.value}
-            style={[
-              loginStyles.roleOption,
-              selectedRole === r.value && loginStyles.roleOptionActive,
-            ]}
-            onPress={() => setSelectedRole(r.value)}
-          >
-            <View style={[loginStyles.roleDot, { backgroundColor: selectedRole === r.value ? '#FFFFFF' : '#3A3A50' }]} />
-            <Text
+          <Text style={loginStyles.formLabel}>Role</Text>
+          {roles.map((r) => (
+            <TouchableOpacity
+              key={r.value}
               style={[
-                loginStyles.roleText,
-                selectedRole === r.value && loginStyles.roleTextActive,
+                loginStyles.roleOption,
+                selectedRole === r.value && loginStyles.roleOptionActive,
               ]}
+              onPress={() => setSelectedRole(r.value)}
+              activeOpacity={0.7}
             >
-              {r.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View style={[loginStyles.roleDot, { backgroundColor: selectedRole === r.value ? '#FFFFFF' : '#3A3A50' }]} />
+              <Text
+                style={[
+                  loginStyles.roleText,
+                  selectedRole === r.value && loginStyles.roleTextActive,
+                ]}
+              >
+                {r.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
 
-        {error && (
-          <Text style={loginStyles.errorText}>{error}</Text>
-        )}
-
-        <TouchableOpacity
-          style={[loginStyles.loginBtn, (!username.trim() || loading) && loginStyles.loginBtnDisabled]}
-          onPress={() => onLogin(username.trim(), selectedRole)}
-          disabled={!username.trim() || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={loginStyles.loginBtnText}>Enter</Text>
+          {error && (
+            <Text style={loginStyles.errorText}>{error}</Text>
           )}
-        </TouchableOpacity>
 
-        <Text style={loginStyles.hint}>
-          pick a name and role — no password needed
-        </Text>
+          <TouchableOpacity
+            style={[loginStyles.loginBtn, (!username.trim() || loading) && loginStyles.loginBtnDisabled]}
+            onPress={() => onLogin(username.trim(), selectedRole)}
+            disabled={!username.trim() || loading}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={loginStyles.loginBtnText}>Enter</Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={loginStyles.hint}>
+            pick a name and role — no password needed
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -175,7 +182,15 @@ const loginStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0F',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
+  },
+  innerWrap: {
+    width: '100%',
+    maxWidth: 440,
+  },
+  innerWrapDesktop: {
+    maxWidth: 420,
   },
   illustrationArea: {
     alignItems: 'center',
@@ -272,7 +287,7 @@ const loginStyles = StyleSheet.create({
     marginTop: 8,
   },
   card: {
-    backgroundColor: '#14141E',
+    backgroundColor: 'rgba(20, 20, 30, 0.85)',
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,

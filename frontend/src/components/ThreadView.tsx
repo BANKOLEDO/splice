@@ -173,11 +173,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   message: {
-    backgroundColor: '#14141E',
+    backgroundColor: 'rgba(20, 20, 30, 0.85)',
     borderLeftWidth: 3,
     padding: 12,
     marginBottom: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#2A2A40',
   },

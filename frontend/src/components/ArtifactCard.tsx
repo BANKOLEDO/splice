@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 12,
     marginVertical: 6,
-    backgroundColor: '#14141E',
+    backgroundColor: 'rgba(20, 20, 30, 0.85)',
     overflow: 'hidden',
   },
   accentBar: {

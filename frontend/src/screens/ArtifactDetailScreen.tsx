@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Share,
+  useWindowDimensions,
 } from 'react-native';
 import { ThreadView } from '../components/ThreadView';
 import { api } from '../utils/api';
@@ -19,6 +20,7 @@ import {
   TYPE_COLORS,
   STATUS_COLORS,
 } from '../utils/types';
+import { BREAKPOINTS } from '../utils/responsive';
 
 interface ArtifactDetailScreenProps {
   route: { params: { artifact: Artifact } };
@@ -33,6 +35,8 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
   currentUser,
   currentRole,
 }) => {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= BREAKPOINTS.tablet;
   const { artifact: initialArtifact } = route.params;
   const [artifact, setArtifact] = useState<Artifact>(initialArtifact);
   const [thread, setThread] = useState<Thread>({ id: null, artifact_id: artifact.id, resolved: false, messages: [] });
@@ -146,6 +150,7 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
         </TouchableOpacity>
       </View>
 
+      <View style={[styles.bodyWrap, isDesktop && styles.bodyWrapDesktop]}>
       <View style={styles.meta}>
         <View style={[styles.badge, { backgroundColor: TYPE_COLORS[artifact.type] || '#999' }]}>
           <Text style={styles.badgeText}>{artifact.type.toUpperCase()}</Text>
@@ -281,6 +286,7 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
         </ScrollView>
       )}
     </View>
+    </View>
   );
 };
 
@@ -288,6 +294,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0A0F',
+  },
+  bodyWrap: {
+    flex: 1,
+    width: '100%',
+  },
+  bodyWrapDesktop: {
+    maxWidth: 800,
+    alignSelf: 'center',
+    width: '100%',
   },
   header: {
     flexDirection: 'row',
@@ -424,7 +439,7 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 20,
-    backgroundColor: '#14141E',
+    backgroundColor: 'rgba(20, 20, 30, 0.85)',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
