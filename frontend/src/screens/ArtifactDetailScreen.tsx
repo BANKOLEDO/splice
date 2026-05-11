@@ -137,7 +137,10 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{artifact.title}</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{artifact.title}</Text>
+          <View style={[styles.headerTypeIndicator, { backgroundColor: TYPE_COLORS[artifact.type] || '#7C5CFC' }]} />
+        </View>
         <TouchableOpacity onPress={handleShare}>
           <Text style={styles.shareText}>Share</Text>
         </TouchableOpacity>
@@ -305,11 +308,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     flex: 1,
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  headerTypeIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   shareText: {
     fontSize: 14,

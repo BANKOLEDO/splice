@@ -103,7 +103,10 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string }> = ({
   const renderHeader = () => (
     <View>
       <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Splice</Text>
+        <View style={styles.headerTitleRow}>
+          <View style={styles.headerDot} />
+          <Text style={styles.headerTitle}>Splice</Text>
+        </View>
         <TouchableOpacity style={styles.newButton} onPress={() => setShowNewModal(true)}>
           <Text style={styles.newButtonText}>+ New</Text>
         </TouchableOpacity>
@@ -282,6 +285,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#14141E',
     borderBottomWidth: 1,
     borderBottomColor: '#2A2A40',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00F5A0',
   },
   headerTitle: {
     fontSize: 24,

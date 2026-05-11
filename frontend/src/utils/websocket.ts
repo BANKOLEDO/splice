@@ -5,12 +5,14 @@ type MessageHandler = (data: any) => void;
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private userId: string = '';
+  private token: string = '';
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnected: boolean = false;
 
-  connect(userId: string) {
+  connect(userId: string, token: string) {
     this.userId = userId;
+    this.token = token;
     this.doConnect();
   }
 
@@ -20,12 +22,17 @@ class WebSocketClient {
 
     this.ws.onopen = () => {
       this.isConnected = true;
+      this.send({ type: 'auth', token: this.token });
       this.emit('connected', { user_id: this.userId });
     };
 
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'error') {
+          console.warn('WS error:', data.detail);
+          return;
+        }
         this.emit(data.type, data);
         this.emit('message', data);
       } catch (e) {

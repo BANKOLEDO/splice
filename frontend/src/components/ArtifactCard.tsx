@@ -27,39 +27,53 @@ function truncate(str: string, len: number): string {
 
 export const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPress }) => (
   <TouchableOpacity onPress={() => onPress(artifact)} style={styles.card}>
-    <View style={styles.cardHeader}>
-      <View style={[styles.typeBadge, { backgroundColor: TYPE_COLORS[artifact.type] || '#999' }]}>
-        <Text style={styles.typeText}>{artifact.type.toUpperCase()}</Text>
+    <View style={[styles.accentBar, { backgroundColor: TYPE_COLORS[artifact.type] || '#7C5CFC' }]} />
+    <View style={styles.cardBody}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.typeBadge, { backgroundColor: TYPE_COLORS[artifact.type] || '#7C5CFC' }]}>
+          <Text style={styles.typeText}>{artifact.type.toUpperCase()}</Text>
+        </View>
+        <View style={[styles.statusBadge, { borderColor: STATUS_COLORS[artifact.status] || '#5C5C78' }]}>
+          <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[artifact.status] || '#5C5C78' }]} />
+          <Text style={[styles.statusText, { color: STATUS_COLORS[artifact.status] || '#5C5C78' }]}>
+            {artifact.status.replace('_', ' ')}
+          </Text>
+        </View>
       </View>
-      <View style={[styles.statusBadge, { borderColor: STATUS_COLORS[artifact.status] || '#999' }]}>
-        <Text style={[styles.statusText, { color: STATUS_COLORS[artifact.status] || '#999' }]}>
-          {artifact.status.replace('_', ' ')}
-        </Text>
+
+      <Text style={styles.title}>{artifact.title}</Text>
+      <Text style={styles.preview} numberOfLines={2}>
+        {truncate(artifact.content, 120)}
+      </Text>
+
+      <View style={styles.cardFooter}>
+        <Text style={styles.owner}>@{artifact.owner_role}</Text>
+        <Text style={styles.owner}>{artifact.created_by}</Text>
+        <Text style={styles.time}>{formatTime(artifact.updated_at)}</Text>
       </View>
-    </View>
-
-    <Text style={styles.title}>{artifact.title}</Text>
-    <Text style={styles.preview} numberOfLines={2}>
-      {truncate(artifact.content, 120)}
-    </Text>
-
-    <View style={styles.cardFooter}>
-      <Text style={styles.owner}>@{artifact.owner_role}</Text>
-      <Text style={styles.owner}>{artifact.created_by}</Text>
-      <Text style={styles.time}>{formatTime(artifact.updated_at)}</Text>
     </View>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
     borderWidth: 1,
     borderColor: '#2A2A40',
     borderRadius: 12,
-    padding: 16,
     marginHorizontal: 12,
     marginVertical: 6,
     backgroundColor: '#14141E',
+    overflow: 'hidden',
+  },
+  accentBar: {
+    width: 4,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  cardBody: {
+    flex: 1,
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -79,10 +93,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
     fontSize: 11,

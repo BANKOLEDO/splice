@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/authStore';
+
 const IS_DEV = typeof __DEV__ === 'undefined' ? process.env.NODE_ENV !== 'production' : __DEV__;
 const BASE_URL = IS_DEV ? 'http://localhost:8000' : 'https://splice-api.onrender.com';
 
@@ -6,8 +8,10 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const token = useAuthStore.getState().token;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers as Record<string, string>),
   };
 
