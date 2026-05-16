@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,7 +39,6 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string; onNavi
   const token = useAuthStore((s) => s.token);
   const teamId = user?.team_id;
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [filtered, setFiltered] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('');
@@ -69,21 +68,21 @@ export const HomeScreen: React.FC<{ navigation: any; currentUser: string; onNavi
     fetchArtifacts();
   }, [fetchArtifacts]);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let result = artifacts;
     if (activeFilter) {
-      result = result.filter((a) => a.type === activeFilter);
+        result = result.filter((a) => a.type === activeFilter);
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.content.toLowerCase().includes(q) ||
-          a.created_by.toLowerCase().includes(q),
-      );
+        const q = searchQuery.toLowerCase();
+        result = result.filter(
+            (a) =>
+                a.title.toLowerCase().includes(q) ||
+                a.content.toLowerCase().includes(q) ||
+                a.created_by.toLowerCase().includes(q),
+        );
     }
-    setFiltered(result);
+    return result;
   }, [artifacts, activeFilter, searchQuery]);
 
   const handleRefresh = () => {

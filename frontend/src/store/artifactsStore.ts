@@ -38,18 +38,21 @@ interface ArtifactsState {
   isLoading: boolean;
   error: string | null;
   filter: { status?: string; type?: string; search?: string };
-  fetchArtifacts: (token: string, params?: { status?: string; owner?: string; type?: string }) => Promise<void>;
-  fetchArtifact: (token: string, id: string) => Promise<Artifact>;
-  fetchThread: (token: string, artifactId: string) => Promise<Thread>;
-  addMessage: (token: string, artifactId: string, msg: Partial<Message>) => Promise<void>;
+  fetchArtifacts: (params?: { status?: string; owner?: string; type?: string }) => Promise<void>;
+  fetchArtifact: (id: string) => Promise<Artifact>;
+  fetchThread: (artifactId: string) => Promise<Thread>;
+  addMessage: (artifactId: string, msg: Partial<Message>) => Promise<void>;
   setFilter: (filter: { status?: string; type?: string; search?: string }) => void;
   clearError: () => void;
 }
 
+import { useAuthStore } from './authStore';
+
 const IS_DEV = typeof __DEV__ === 'undefined' ? process.env.NODE_ENV !== 'production' : __DEV__;
 const API_BASE = IS_DEV ? 'http://localhost:8000' : 'https://splice-api.onrender.com';
 
-async function apiRequest(token: string, path: string, options: RequestInit = {}) {
+async function apiRequest(path: string, options: RequestInit = {}) {
+  const token = useAuthStore.getState().token;
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -73,38 +76,38 @@ export const useArtifactsStore = create<ArtifactsState>((set, get) => ({
   error: null,
   filter: {},
 
-  fetchArtifacts: async (token, params) => {
+  fetchArtifacts: async (params) => {
     set({ isLoading: true, error: null });
     try {
       const qs = new URLSearchParams();
       if (params?.status) qs.set('status', params.status);
       if (params?.owner) qs.set('owner', params.owner);
       if (params?.type) qs.set('type', params.type);
-      const data = await apiRequest(token, `/api/artifacts?${qs.toString()}`);
+      const data = await apiRequest(`/api/artifacts?${qs.toString()}`);
       set({ artifacts: data, isLoading: false });
     } catch (e: any) {
       set({ error: e.message, isLoading: false });
     }
   },
 
-  fetchArtifact: async (token, id) => {
-    const data = await apiRequest(token, `/api/artifacts/${id}`);
+  fetchArtifact: async (id) => {
+    const data = await apiRequest(`/api/artifacts/${id}`);
     set({ currentArtifact: data });
     return data;
   },
 
-  fetchThread: async (token, artifactId) => {
-    const data = await apiRequest(token, `/api/artifacts/${artifactId}/thread`);
+  fetchThread: async (artifactId) => {
+    const data = await apiRequest(`/api/artifacts/${artifactId}/thread`);
     set({ currentThread: data });
     return data;
   },
 
-  addMessage: async (token, artifactId, msg) => {
-    await apiRequest(token, `/api/artifacts/${artifactId}/messages`, {
+  addMessage: async (artifactId, msg) => {
+    await apiRequest(`/api/artifacts/${artifactId}/messages`, {
       method: 'POST',
       body: JSON.stringify(msg),
     });
-    const thread = await get().fetchThread(token, artifactId);
+    const thread = await get().fetchThread(artifactId);
     set({ currentThread: thread });
   },
 
