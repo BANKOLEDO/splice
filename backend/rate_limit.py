@@ -1,36 +1,36 @@
 import time
-from collections import defaultdict
 from typing import Callable
-
 from fastapi import Request, HTTPException, status
-
-
-class InMemoryRateLimiter:
+from database import get_db
+class DatabaseRateLimiter:
     def __init__(self, max_per_minute: int = 120):
         self.max_per_minute = max_per_minute
-        self.requests: dict[str, list[float]] = defaultdict(list)
-
-    def check(self, key: str) -> bool:
-        now = time.time()
-        window = now - 60
-        self.requests[key] = [t for t in self.requests[key] if t > window]
-        if len(self.requests[key]) >= self.max_per_minute:
-            return False
-        self.requests[key].append(now)
-        return True
-
-
-rate_limiter = InMemoryRateLimiter()
+    def check(self, conn, key: str) -> bool:
+        now = int(time.time())
+        window_start = now - (now % 60)  # round down to minute
+        # Try to insert or increment atomically
+        conn.execute(
+            """INSERT INTO rate_limits (key, window_start, count)
+               VALUES (?, ?, 1)
+               ON CONFLICT(key, window_start) DO UPDATE SET count = count + 1""",
+            (key, window_start),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT count FROM rate_limits WHERE key = ? AND window_start = ?",
+            (key, window_start),
+        ).fetchone()
+        return row["count"] <= self.max_per_minute
+rate_limiter = DatabaseRateLimiter()
 
 
 async def rate_limit_middleware(request: Request, call_next: Callable):
     if request.url.path.startswith("/api/"):
-        client_ip = request.client.host if request.client else "unknown"
-        key = f"{client_ip}:{request.url.path}"
-        if not rate_limiter.check(key):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Try again in 60 seconds.",
-            )
+        conn = get_db()
+        # Use user_id if authenticated, fall back to IP
+        auth_header = request.headers.get("Authorization", "")
+        key = auth_header if auth_header.startswith("Bearer ") else (request.client.host if request.client else "unknown")
+        if not rate_limiter.check(conn, key):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
     response = await call_next(request)
     return response

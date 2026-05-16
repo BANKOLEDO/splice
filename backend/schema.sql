@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'dev' CHECK(role IN ('dev', 'designer', 'pm', 'backend', 'frontend')),
+    temp_password INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     last_login INTEGER
 );
@@ -102,6 +103,25 @@ CREATE TABLE IF NOT EXISTS files (
     size INTEGER,
     created_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT NOT NULL,
+    window_start INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (key, window_start)
+);
+
+CREATE TABLE IF NOT EXISTS activity_events (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    artifact_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    detail TEXT DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_activity_artifact ON activity_events(artifact_id);
+
 
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;

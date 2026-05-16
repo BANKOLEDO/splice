@@ -44,7 +44,7 @@ def login_user(client, data):
 class TestAuth:
     def test_register(self, client, user_data):
         resp = register_user(client, user_data)
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         body = resp.json()
         assert "token" in body
         assert body["user"]["username"] == user_data["username"]
@@ -105,7 +105,7 @@ class TestArtifacts:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         assert resp.json()["id"] == artifact_id
 
     def test_get_artifacts(self, client, user_data):
@@ -177,7 +177,7 @@ class TestMessages:
             json={"author": "test", "role": "dev", "content": "Hello world", "attachments": [], "mentions": []},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         assert "message_id" in resp.json()
 
     def test_get_thread(self, client, user_data):
@@ -224,13 +224,19 @@ class TestMessages:
 class TestFileUpload:
     def test_upload(self, client, user_data):
         token = register_user(client, user_data).json()["token"]
+        aid = f"up_{uuid.uuid4().hex[:8]}"
+        client.post(
+            "/api/artifacts",
+            json={"id": aid, "type": "task", "title": "Upload Test", "content": "Test", "owner_role": "dev", "status": "draft", "dependencies": [], "created_by": "test", "metadata": {}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
         resp = client.post(
             "/api/upload",
             files={"file": ("test.txt", b"Hello world", "text/plain")},
-            data={"user_id": "test"},
+            data={"artifact_id": aid},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.json()
         assert data["filename"] == "test.txt"
 
