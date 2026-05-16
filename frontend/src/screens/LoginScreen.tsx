@@ -12,7 +12,7 @@ import { Role } from '../utils/types';
 import { BREAKPOINTS } from '../utils/responsive';
 
 interface LoginScreenProps {
-  onLogin: (username: string, role: Role) => void;
+  onLogin: (username: string, password: string, role: Role, mode: 'login' | 'register') => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -29,6 +29,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, erro
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINTS.tablet;
   const [username, setUsername] = useState('');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role>(Role.DEV);
 
   return (
@@ -83,22 +88,87 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, erro
             </TouchableOpacity>
           ))}
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          <Text style={styles.formLabel}>Password</Text>
+          <View style={styles.passwordRow}>
+            <TextInput 
+                style={[styles.input, { flex: 1}]}
+                placeholder='Enter a password (6+ chars)'
+                placeholderTextColor='#2A2A40'
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize='none'
+            />
+            <TouchableOpacity
+                style={styles.passwordToggle}
+                onPress={() => setShowPassword(!showPassword)}
+            >
+              <Text style={styles.passwordToggleText}>
+                {showPassword ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {mode === 'register' && (
+            <>
+              <Text style={styles.formLabel}>Confirm Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm password"
+                placeholderTextColor="#2A2A40"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+            </>
+          )}
+
+          {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+          {!passwordError && error && <Text style={styles.errorText}>{error}</Text>}
 
           <TouchableOpacity
             style={[styles.loginBtn, (!username.trim() || loading) && styles.loginBtnDisabled]}
-            onPress={() => onLogin(username.trim(), selectedRole)}
+            onPress={() => {
+              //Reset errors
+              setPasswordError(null);
+
+              // validate password
+              if (password.length < 6 ) {
+                setPasswordError('Password must be at least 6 characters');
+                return;
+              }
+
+              if (mode === 'register' && password !== confirmPassword) {
+                setPasswordError('Passwords do not match');
+                return;
+              }
+
+              onLogin(username.trim(), password, selectedRole, mode);
+            }}
             disabled={!username.trim() || loading}
             activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.loginBtnText}>Enter</Text>
+              <Text style={styles.loginBtnText}>{mode === 'login' ? 'Login' : 'Register'}</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.modeToggle}
+            onPress={() => {
+              setMode(mode === 'login' ? 'register' : 'login');
+              setPasswordError(null);
+            }}
+          >
+            <Text style={styles.modeToggleText}>
+              {mode === 'login' ? "Don't have an account? Create one" : "Already have an account? Login"}
+            </Text>
+          </TouchableOpacity>
 
-          <Text style={styles.hint}>pick a name and role — no password needed</Text>
+          {mode === 'register' && <Text style={styles.hint}>pick a name, role, and secure password</Text>}
+{mode === 'login' && <Text style={styles.hint}>enter your username and password</Text>}
         </View>
       </View>
     </View>
@@ -268,6 +338,33 @@ const styles = StyleSheet.create({
   },
   roleTextActive: {
     color: '#FFFFFF',
+  },
+   passwordRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  passwordToggle: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1C1C2E',
+    backgroundColor: '#0D0D1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  passwordToggleText: {
+    fontSize: 18,
+  },
+  modeToggle: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  modeToggleText: {
+    fontSize: 12,
+    color: '#7C5CFC',
+    fontWeight: '600',
   },
   loginBtn: {
     backgroundColor: '#7C5CFC',

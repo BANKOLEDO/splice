@@ -20,10 +20,35 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const { login, register, token } = useAuthStore();
 
-  const handleLogin = async (username: string, role: Role) => {
+  useEffect(() => {
+    const storedToken = useAuthStore.getState().token;
+    const storedUser = useAuthStore.getState().user;
+    if (storedToken && storedUser) {
+      const IS_DEV = typeof __DEV__ === 'undefined'
+        ? ((globalThis as any)?.process?.env?.NODE_ENV !== 'production')
+        : __DEV__;
+      const API_BASE = IS_DEV ? 'http://localhost:8000' : 'https://splice-api.*****.com';
+      fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => {
+          if (res.ok) {
+            setCurrentUser(storedUser.username);
+            setCurrentRole(storedUser.role as Role);
+            setShowLogin(false);
+          } else {
+            useAuthStore.getState().logout();
+          }
+        })
+        .catch(() => {
+          useAuthStore.getState().logout();
+        });
+    }
+  }, []);
+
+  const handleLogin = async (username: string, password: string, role: Role, mode: string) => {
     setAuthLoading(true);
     setAuthError(null);
-    const password = username + '_splice_2024';
     try {
       await register(username, password, username, role);
     } catch (e: any) {
@@ -65,7 +90,8 @@ const App: React.FC = () => {
           <Stack.Screen name="ArtifactDetail">
             {(props) => (
               <ArtifactDetailScreen
-                {...props}
+                route={props.route as any}
+                navigation={props.navigation}
                 currentUser={currentUser}
                 currentRole={currentRole}
               />
