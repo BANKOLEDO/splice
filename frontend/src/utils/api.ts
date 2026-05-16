@@ -109,11 +109,10 @@ export const api = {
     ),
 
   // File Upload
-  uploadFile: async (file: File, userId: string, artifactId?: string) => {
+  uploadFile: async (file: File, artifactId: string) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('user_id', userId);
-    if (artifactId) formData.append('artifact_id', artifactId);
+    formData.append('artifact_id', artifactId);
 
     const response = await fetch(`${BASE_URL}/api/upload`, {
       method: 'POST',
@@ -143,6 +142,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Activity
+  getActivity: (params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const qs = searchParams.toString();
+    return request<any[]>(`/api/activity${qs ? `?${qs}` : ''}`);
+  },
 
   // Typing indicator
   sendTyping: (artifactId: string, userId: string) =>

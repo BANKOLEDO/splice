@@ -16,9 +16,9 @@ interface ActivityEvent {
   type: string;
   artifact_id: string;
   artifact_title: string;
-  user: string;
-  timestamp: number;
+  actor_id: string;
   detail: string;
+  created_at: number;
 }
 
 function formatTime(timestamp: number): string {
@@ -46,32 +46,13 @@ export const ActivityScreen: React.FC<{ currentUser: string; onNavigateToDetail?
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const fetchActivity = useCallback(async () => {
     try {
-      const data = await api.getArtifacts({ limit: 20 });
-      const activities: ActivityEvent[] = data.flatMap((a: any) => [
-        {
-          id: `c-${a.id}`,
-          type: 'created',
-          artifact_id: a.id,
-          artifact_title: a.title,
-          user: a.created_by,
-          timestamp: a.created_at,
-          detail: 'created artifact',
-        },
-        {
-          id: `u-${a.id}`,
-          type: 'updated',
-          artifact_id: a.id,
-          artifact_title: a.title,
-          user: a.created_by,
-          timestamp: a.updated_at,
-          detail: `status: ${a.status}`,
-        },
-      ]);
-      activities.sort((a, b) => b.timestamp - a.timestamp);
-      setEvents(activities.slice(0, 50));
+      const data = await api.getActivity({ limit: 50 });
+      if (data.length < 50) setHasMore(false);
+      setEvents(data);
     } catch (e) {
       console.warn('Failed to fetch activity:', e);
     } finally {
@@ -80,9 +61,16 @@ export const ActivityScreen: React.FC<{ currentUser: string; onNavigateToDetail?
     }
   }, []);
 
-  useEffect(() => {
-    fetchActivity();
-  }, [fetchActivity]);
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loading) return;
+    try {
+      const data = await api.getActivity({ limit: 20, offset: events.length });
+      if (data.length < 20) setHasMore(false);
+      setEvents((prev) => [...prev, ...data]);
+    } catch (e) {
+      console.warn('Failed to load more:', e);
+    }
+  }, [hasMore, loading, events.length]);
 
   const renderItem = ({ item }: { item: ActivityEvent }) => (
     <TouchableOpacity
@@ -95,11 +83,11 @@ export const ActivityScreen: React.FC<{ currentUser: string; onNavigateToDetail?
       </View>
       <View style={styles.eventBody}>
         <View style={styles.eventRow}>
-          <Text style={styles.eventUser}>{item.user}</Text>
+          <Text style={styles.eventUser}>{item.actor_id}</Text>
           <Text style={styles.eventDetail}>{item.detail}</Text>
         </View>
         <Text style={styles.eventArtifact}>{item.artifact_title}</Text>
-        <Text style={styles.eventTime}>{formatTime(item.timestamp)}</Text>
+        <Text style={styles.eventTime}>{formatTime(item.created_at)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -126,6 +114,8 @@ export const ActivityScreen: React.FC<{ currentUser: string; onNavigateToDetail?
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchActivity(); }} tintColor="#7C5CFC" />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />

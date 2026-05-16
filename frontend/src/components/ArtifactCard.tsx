@@ -7,6 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import { Artifact, TYPE_COLORS, STATUS_COLORS } from '../utils/types';
+import { sanitizeDisplay } from '@/utils/sanitize';
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -70,9 +71,9 @@ export const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPress })
             </View>
           </View>
 
-          <Text style={styles.title}>{artifact.title}</Text>
+          <Text style={styles.title}>{sanitizeDisplay(artifact.title)}</Text>
           <Text style={styles.preview} numberOfLines={2}>
-            {truncate(artifact.content, 120)}
+            {truncate(sanitizeDisplay(artifact.content), 120)}
           </Text>
 
           <View style={styles.cardFooter}>

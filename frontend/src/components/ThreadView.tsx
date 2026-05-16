@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Message, Role, ROLE_COLORS } from '../utils/types';
 import { wsClient } from '../utils/websocket';
+import { sanitizeDisplay } from './../utils/sanitize';
 
 interface ThreadViewProps {
   artifactId: string;
@@ -40,6 +41,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingTime = useRef<number>(0);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -56,7 +58,10 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
 
   const handleInputChange = (text: string) => {
     setInputText(text);
+    const now = Date.now();
+    if (now - lastTypingTime.current < 2000) return; // Throttle typing notifications to every 2 seconds
     wsClient.sendTyping(artifactId);
+    lastTypingTime.current = now;
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
@@ -74,7 +79,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
             {new Date(item.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
-        <Text style={styles.messageContent}>{item.content}</Text>
+        <Text style={styles.messageContent}>{sanitizeDisplay(item.content)}</Text>
         {item.attachments && item.attachments.length > 0 && (
           <View style={styles.attachmentRow}>
             {item.attachments.map((att, i) => (

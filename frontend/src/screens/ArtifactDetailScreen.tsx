@@ -22,6 +22,7 @@ import {
   STATUS_COLORS,
 } from '../utils/types';
 import { BREAKPOINTS } from '../utils/responsive';
+import { sanitizeDisplay } from '@/utils/sanitize';
 
 interface ArtifactDetailScreenProps {
   route: { params: { artifact: Artifact } };
@@ -129,10 +130,11 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
   };
 
   const handleShare = async () => {
-    const text = `Splice Artifact: ${artifact.title}\n\n${artifact.content.substring(0, 200)}...\n\nStatus: ${artifact.status}\nOwner: @${artifact.owner_role}`;
+    const text = `Splice Artifact: ${sanitizeDisplay(artifact.title)}\n\n${sanitizeDisplay(artifact.content).substring(0, 200)}...\n\nStatus: ${artifact.status}\nOwner: @${artifact.owner_role}`;
     try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ text });
+      const webNavigator = typeof globalThis !== 'undefined' ? (globalThis as any).navigator : undefined;
+      if (webNavigator?.share) {
+        await webNavigator.share({ text });
       } else {
         await Share.share({ message: text });
       }
@@ -282,7 +284,7 @@ export const ArtifactDetailScreen: React.FC<ArtifactDetailScreenProps> = ({
         <ScrollView style={styles.specPanel}>
           {generatedSpec ? (
             <View style={styles.specCard}>
-              <Text style={styles.specText}>{generatedSpec}</Text>
+              <Text style={styles.specText}>{sanitizeDisplay(generatedSpec)}</Text>
             </View>
           ) : (
             <View style={styles.specEmpty}>
